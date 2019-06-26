@@ -1,9 +1,9 @@
-import Arima2 as Arima
+import logconversion as logconv
 from pprint import pprint
 
 filename = "./data/Prod1Torno2.csv"
 
-cases, atividadesDict,atividadeArrayString = Arima.find_activicties_array_ids(filename)
+cases, atividadesDict,atividadeArrayString = logconv.find_activicties_array_ids(filename)
 atv_ocorridas = []
 
 
@@ -27,9 +27,9 @@ with open("Arquivo.csv","w") as file:
         file.write(linha + "\n")
 
 file.close()
-reajustes, producao, nProd = Arima.group_activities(atividadeArrayString)
-prod = Arima.separate_times_by_groups(filename,[reajustes, producao])
-arrayMedias, Mediainter = Arima.MediaMaker(prod)
+reajustes, producao, nProd = logconv.group_activities(atividadeArrayString)
+prod = logconv.separate_times_by_groups(filename,[reajustes, producao])
+arrayMedias, Mediainter = logconv.MediaMaker(prod)
 with open("logPibic1.txt","w") as file:
     file.write("=========================================\n")
     for i in prod:
@@ -48,9 +48,9 @@ with open("logPibic1.txt","w") as file:
     print("Log Done!!!")
 file.close()
 
-menorTempo = Arima.Filter([cases,producao,atividadesDict,0.10],3)
+menorTempo = logconv.Filter([cases,producao,atividadesDict,0.10],3)
 print("Melhor tempo filtro : "+ str(menorTempo))
-pecas = Arima.NumeroProducaoIdeal(menorTempo,arrayMedias,Mediainter,True)
+pecas = logconv.NumeroProducaoIdeal(menorTempo,arrayMedias,Mediainter,True)
 print("Numero de peças ideal com corte = " + str(pecas))
-pecas = Arima.NumeroProducaoIdeal(menorTempo,arrayMedias,Mediainter,False)
+pecas = logconv.NumeroProducaoIdeal(menorTempo,arrayMedias,Mediainter,False)
 print("Numero de peças ideal sem corte = " + str(pecas))
