@@ -10,21 +10,21 @@ class ClassCaseByID(object):
         self.ID = ID
         self.Atividades = []
         self.DuracaoATV = []
-        self.OffProcess = []
-        self.DuracaoAtvExtra = []
-        self.DuracaoProd = 0
-
+        self.DuracaoTotal = 0
+    def SumDuracaoTotal(self):
+        self.DuracaoTotal = 0
+        for i in self.DuracaoATV:
+            self.DuracaoTotal += i
 
 class ClassPruducaoReajuste(object):
-    def __init__(self,idd,Tipo,Atv,Dur,Tem,Tam,manut):
+    def __init__(self,idd,Tipo,Atv,Dur,Tem,Tam,Intrup):
         self.ID = idd
         self.Tipo = Tipo
         self.Atividades = Atv
         self.Duraçoes = Dur
         self.Tempo = Tem
         self.Tamanho = Tam
-        self.manutencao = manut
-
+        self.interrupt = Intrup
 class ClassMedia(object):
     def __init__(self):
         self.tempo = 0
@@ -76,8 +76,29 @@ def find_activicties_array_ids(Arquivo):
     for (a, i) in zip(atividade, range(0, len(atividade))):
         atividades[i] = a
 
-    return arrayID, atividades, atividade, at
- 
+    return arrayID, atividades, atividade
+                
+def GetVetDuracaoTodasAtividades(arquivo,VetAtividades):
+    count = 0
+    VetorTempoAtividades = []
+    for atv in VetAtividades:
+        temp = ClassAtividade(atv)
+        VetorTempoAtividades.append(temp)
+    with open(arquivo) as file:
+        for line in file:
+            if count !=0:
+                Lineparts = line.split(";")
+                for atv in VetorTempoAtividades:
+                    if atv.Nome == Lineparts[1]:
+                        atv.Vetduracao.append(int(Lineparts[4]))
+                        atv.TamanhoVetDuracao += 1
+                        break
+                
+            count +=1
+    file.close()
+    return VetorTempoAtividades
+
+
 def group_activities(activities):
 
     print('\n=================================\n')
@@ -108,29 +129,29 @@ def separate_times_by_groups(arquivo, groups):
     atividadeExecutadas = []
     duracoesExecutadas = []
     count = 0
-    manutencao = False
+    interrupcao = False
     IDatual = 0
     IDanterior = 1
     interacao = 1.0
     arrayClassPruducaoReajuste = []
-    manut = 0
+    interupt = 0
     
     with open(arquivo, 'r') as file:
         for line in file:
             if count !=0:
                 lineparts = line.split(";")
                 if(lineparts[1] in producao):
-                    if(manutencao == True):
+                    if(interrupcao == True):
                         if tempo != 0:
-                            arrayClassPruducaoReajuste.append(ClassPruducaoReajuste(interacao,"manutencao",atividadeExecutadas,duracoesExecutadas,tempo,prod_counter,manut))
-                        manut += 1
+                            arrayClassPruducaoReajuste.append(ClassPruducaoReajuste(interacao,"Interrupcao",atividadeExecutadas,duracoesExecutadas,tempo,prod_counter,interupt))
+                        interupt += 1
                         interacao = 0
                         tempo = 0
                         atividadeExecutadas = []
                         duracoesExecutadas = []
                         prod_counter = 0
                         #interacao = 0
-                        manutencao = False
+                        interrupcao = False
                     # se o tempo não for nulo
                     IDatual = int(lineparts[0])
                     if(float(lineparts[4]) > 0 and IDatual == IDanterior):
@@ -138,23 +159,23 @@ def separate_times_by_groups(arquivo, groups):
                         prod_counter += 1.0
                         atividadeExecutadas.append(lineparts[1])
                         duracoesExecutadas.append(int(lineparts[4]))
-                        manutencao = False
+                        interrupcao = False
                     elif(float(lineparts[4]) > 0 and IDatual != IDanterior):
                         if tempo != 0:
                             if interacao == 0:
                                 interacao = 1
-                            arrayClassPruducaoReajuste.append(ClassPruducaoReajuste(interacao,"Producao",atividadeExecutadas,duracoesExecutadas,tempo,prod_counter,manut))
+                            arrayClassPruducaoReajuste.append(ClassPruducaoReajuste(interacao,"Producao",atividadeExecutadas,duracoesExecutadas,tempo,prod_counter,interupt))
                         tempo = float(lineparts[4])
                         prod_counter = 1
                         atividadeExecutadas = [lineparts[1]]
                         duracoesExecutadas = [int(lineparts[4])]
                         interacao += 1
-                        manutencao = False
+                        interrupcao = False
                         IDanterior = IDatual
                 elif(lineparts[1] in reajustes):
-                    if(manutencao == False):
+                    if(interrupcao == False):
                         if tempo != 0:
-                            arrayClassPruducaoReajuste.append(ClassPruducaoReajuste(interacao,"Producao",atividadeExecutadas,duracoesExecutadas,tempo,prod_counter,manut))
+                            arrayClassPruducaoReajuste.append(ClassPruducaoReajuste(interacao,"Producao",atividadeExecutadas,duracoesExecutadas,tempo,prod_counter,interupt))
                         IDanterior = IDatual
                         IDatual = int(lineparts[0])
                         tempo = float(lineparts[4])
@@ -163,13 +184,13 @@ def separate_times_by_groups(arquivo, groups):
                         duracoesExecutadas = [int(lineparts[4])]
                         interacao += 1
                         
-                        manutencao = True
-                    elif(manutencao == True):
+                        interrupcao = True
+                    elif(interrupcao == True):
                         tempo += float(lineparts[4])
                         atividadeExecutadas.append(lineparts[1])
                         duracoesExecutadas.append(int(lineparts[4]))
                         prod_counter += 1.0
-                        manutencao = True
+                        interrupcao = True
 
                 
             count +=1
@@ -179,13 +200,13 @@ def separate_times_by_groups(arquivo, groups):
 def MediaMaker(arrayProd):
     arrayMedias = []
     arrayNum = []
-    arraymanut = []
+    arrayInterupt = []
     maiorID = 0
     respMedia = []
     count = 0
     respMediaInte = 0
     for i in arrayProd:
-        if(i.Tipo != "manutencao"):
+        if(i.Tipo != "Interrupcao"):
             if i.ID > maiorID:
                 arrayMedias.append(0)
                 arrayNum.append(0)
@@ -194,13 +215,13 @@ def MediaMaker(arrayProd):
                 arrayMedias[int(i.ID) - 1] += i.Tempo
                 arrayNum[int(i.ID) - 1] += 1
         else:
-            arraymanut.append(i.Tempo)
+            arrayInterupt.append(i.Tempo)
             pass
 
     for x in range(len(arrayMedias)):
         respMedia.append(arrayMedias[x]/arrayNum[x])
 
-    for i in arraymanut:
+    for i in arrayInterupt:
         respMediaInte += i
         count += 1
     respMediaInte = respMediaInte/count
@@ -208,37 +229,17 @@ def MediaMaker(arrayProd):
 
 def Filter(ToFilter,filterOption):
     if filterOption == 1: #filtra com base no numero de atividades de produção
-        aproved = []
-        vetMenorTempo = []
         AtivityByID = ToFilter[0]
+        porcentagem = float(ToFilter[1])
+        tempos = []
         for i in AtivityByID:
             i.SumDuracaoTotal()
-        for i in AtivityByID:
-            if len(i.Atividades) == (ToFilter[1]):
-                aproved.append(i)
-        temp = aproved[0]
-        menorTempo = temp.DuracaoTotal
-        vetMenorTempo.append(menorTempo)
-        for i in aproved:
-            if menorTempo > i.DuracaoTotal:
-                menorTempo = i.DuracaoTotal
-                vetMenorTempo.append(menorTempo)
-                if DEBUG:
-                    print(str(menorTempo))
-                    print("ID = " + str(i.ID) )
-                    print("Atividades = " + str(i.Atividades) )
-                    print("duração = " + str(i.DuracaoATV) )
-        return menorTempo , vetMenorTempo 
-
-    elif filterOption == 2: #filta com uma % de eliminaçoes
-        cases = ToFilter[0]
-        prod = ToFilter[1]
-        porcentagem = ToFilter[2]
-        menorTempo, vetMenorTempo = Filter([cases,prod],1)
-        temp = math.ceil(len(vetMenorTempo) * porcentagem)
-        vetMenorTempo.reverse()
-        menorTempo = vetMenorTempo[temp]
-        return menorTempo, vetMenorTempo
+            tempos.append(i.DuracaoTotal)
+        tempos.sort()
+        melhorTempo = tempos[math.ceil(len(tempos)*porcentagem)]
+        if(DEBUG):
+            print("Tamanho Vet tempos= "+str(len(tempos)))
+        return melhorTempo
 
     elif filterOption == 3:#metodo 1 porem com verificação de atividades executadas
         aproved = []
@@ -246,6 +247,7 @@ def Filter(ToFilter,filterOption):
         AtivityByID = ToFilter[0]
         atvProd = ToFilter[1]
         atvdict = ToFilter[2]
+        porcentagem = ToFilter[3]
         atvlen = len(atvProd)
         for i in AtivityByID:
             i.SumDuracaoTotal()
@@ -254,50 +256,33 @@ def Filter(ToFilter,filterOption):
             temp = []
             for x in i.Atividades: 
                 temp.append(atvdict[x])
-            for y in temp:
-                if not(y in(atvProd)):
+            for y in range(len(temp)):
+                if temp[y] != atvProd[y]:
                     fail = True
                     break
             if len(i.Atividades) != atvlen:
                 fail = True
             if fail == False:
-                aproved.append(i)
-
-        temp = aproved[0]
-        menorTempo = temp.DuracaoTotal
-        vetMenorTempo.append(menorTempo)
-        for i in aproved:
-            if menorTempo > i.DuracaoTotal:
-                menorTempo = i.DuracaoTotal
-                vetMenorTempo.append(menorTempo)
-                if DEBUG:
-                    print(str(menorTempo))
-                    print("ID = " + str(i.ID) )
-                    print("Atividades = " + str(i.Atividades) )
-                    print("duração = " + str(i.DuracaoATV) )
-        return menorTempo, vetMenorTempo
-    elif filterOption == 4:
-        AtivityByID = ToFilter[0]
-        atvProd = ToFilter[1]
-        atvdict = ToFilter[2]
-        porcentagem = ToFilter[3]
-        menorTempo, vetMenorTempo = Filter([AtivityByID,atvProd,atvdict],3)
-        temp = math.ceil(len(vetMenorTempo) * porcentagem)
-        vetMenorTempo.reverse()
-        menorTempo = vetMenorTempo[temp]
-        return menorTempo, vetMenorTempo        
-    else:
-        return 0
+                aproved.append(i.DuracaoTotal)
+        aproved.sort()
+        if(DEBUG):
+            print("Tamnho aproved= "+str(len(aproved)))
+        menorTempo = aproved[(math.ceil(len(aproved)*porcentagem))]
+        return menorTempo
 
 def NumeroProducaoIdeal(menorTempo, arrayMedias, Mediainter, filterTimes):
     count = 0
     timeCount = 0.0
+    if(DEBUG):
+        print("Antes de cortar ="+str(len(arrayMedias)))
     if filterTimes == True:
         aproved = []
         for i in arrayMedias:
             if i >= menorTempo:
                 aproved.append(i)
         arrayMedias = aproved
+        if(DEBUG):
+            print("Depois de cortar =" + str(len(arrayMedias)))
     for i in arrayMedias:
         timeCount += (i - menorTempo)
         count += 1
